@@ -19,6 +19,9 @@ LOG_MODULE_REGISTER(net_coap_client_sample, LOG_LEVEL_DBG);
 #include <zephyr/net/coap.h>
 
 #include "net_private.h"
+#if defined(CONFIG_NET_IPV6)
+#include "ipv6.h"
+#endif
 
 #define PEER_PORT 5683
 #define MAX_COAP_MSG_LEN 256
@@ -54,9 +57,40 @@ static void prepare_fds(void)
 	nfds++;
 }
 
+#if defined(CONFIG_NET_IPV4)
 static int start_coap_client(void)
 {
 	int ret = 0;
+
+	struct sockaddr_in addr;
+
+	addr.sin_family = AF_INET;
+	addr.sin_port = htons(PEER_PORT);
+
+	inet_pton(AF_INET, CONFIG_NET_CONFIG_PEER_IPV4_ADDR,
+		  &addr.sin_addr);
+
+	sock = socket(addr.sin_family, SOCK_DGRAM, IPPROTO_UDP);
+	if (sock < 0) {
+		LOG_ERR("Failed to create UDP socket %d", errno);
+		return -errno;
+	}
+
+	ret = connect(sock, (struct sockaddr *)&addr, sizeof(addr));
+	if (ret < 0) {
+		LOG_ERR("Cannot connect to UDP remote : %d", errno);
+		return -errno;
+	}
+
+	prepare_fds();
+
+	return 0;
+}
+#elif defined(CONFIG_NET_IPV6)
+static int start_coap_client(void)
+{
+	int ret = 0;
+
 	struct sockaddr_in6 addr6;
 
 	addr6.sin6_family = AF_INET6;
@@ -82,6 +116,7 @@ static int start_coap_client(void)
 
 	return 0;
 }
+#endif
 
 static int process_simple_coap_reply(void)
 {
