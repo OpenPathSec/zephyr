@@ -173,6 +173,8 @@ BUILD_ASSERT(DT_INST_PROP(0, address_size_32),
 	    "After entering 4 byte addressing mode, 4 byte addressing is expected");
 #endif
 
+#define INST_0_T_ERASE_MS DT_INST_PROP(0, t_erase)
+
 #ifndef CONFIG_PM_DEVICE_RUNTIME
 static bool qspi_initialized;
 #endif
@@ -672,6 +674,17 @@ static int qspi_erase(const struct device *dev, uint32_t addr, uint32_t size)
 			LOG_ERR("erase error at 0x%lx size %zu", (long)addr, size);
 			rv = qspi_get_zephyr_ret_code(res);
 			break;
+		}
+
+		/* Poll WIP bit until complete */
+		if (res == NRFX_SUCCESS && INST_0_T_ERASE_MS > 0) {
+			while (nrfx_qspi_mem_busy_check() != NRFX_SUCCESS) {
+				if (IS_ENABLED(CONFIG_MULTITHREADING)) {
+					k_msleep(INST_0_T_ERASE_MS);
+				} else {
+					k_busy_wait(INST_0_T_ERASE_MS * USEC_PER_MSEC);
+				}
+			}
 		}
 	}
 	qspi_unlock(dev);

@@ -96,3 +96,12 @@ properties:
     required: true
     description: |
       Maximum clock speed supported by the device, in Hz.
+
+  t-erase:
+    type: int
+    default: 0
+    description: |
+      Minimum time required to perform an erase, in milliseconds.
+      On parts that must be polled for the cleared WIP bit, wait
+      in a loop and k_sleep for this duration until the bit is
+      cleared. Set this value to 0 to skip polling.
